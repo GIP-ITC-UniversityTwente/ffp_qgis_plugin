@@ -1,0 +1,24 @@
+<svg width="580" height="580" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+ <defs>
+  <path id="cIgHUsy1v" d="m360.1,83.56c0,38.25 -31.4,69.31 -70.07,69.31c-38.68,0 -70.08,-31.06 -70.08,-69.31c0,-38.25 31.4,-69.31 70.08,-69.31c38.67,0 70.07,31.06 70.07,69.31z"/>
+  <path id="a3ThyukI2d" d="m277.49,322.39l25.49,10.42l-94.42,230.83l-25.49,-10.43l94.42,-230.82z"/>
+  <path id="b3BQzohX36" d="m302.51,322.39l-25.49,10.42l94.42,230.83l25.49,-10.43l-94.42,-230.82z"/>
+  <path id="d26NahIJGD" d="m212.41,482.34l-0.24,27.54l155.43,1.34l0.24,-27.54l-155.43,-1.34z"/>
+  <path id="b21v1Yk4r" d="m277.26,322.39l-0.24,27.54l27.54,0.23l0.24,-27.53l-27.54,-0.24z"/>
+  <path id="g6RXdudFM" d="m270.58,233.71l19.88,48.36l19.01,-48.71l-12.33,0.11l-0.45,-51.47l-14.27,0.13l0.46,51.47l-12.3,0.11z"/>
+ </defs>
+ <g>
+  <title>Layer 1</title>
+  <ellipse fill="#ffffff" stroke="#666666" stroke-width="20" stroke-dasharray="null" opacity="undefined" cx="290.00002" cy="290.00001" id="svg_44" rx="229.00001" ry="229.00001"/>
+  <g id="svg_58" transform="matrix(-1.61647, 1.61647, -1.61647, -1.61647, 1170.27, 13.6411)">
+   <path fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" d="m345.98963,127.84919l24,0l0,117.99999l-24,0l0,-117.99999z" id="svg_4"/>
+   <ellipse fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" cx="357.76329" cy="244.79937" id="svg_5" rx="11.5" ry="11"/>
+   <ellipse fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" cx="357.76329" cy="128.79937" id="svg_6" rx="11.5" ry="11"/>
+  </g>
+  <g id="svg_66" transform="matrix(1.61648, 1.61648, -1.61648, 1.61648, 236.68, -569.323)">
+   <path fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" d="m270.5212,190.35885l24,0l0,117.99999l-24,0l0,-117.99999z" id="svg_8"/>
+   <ellipse fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" cx="282.29487" cy="307.30903" id="svg_9" rx="11.5" ry="11"/>
+   <ellipse fill="#005fbf" stroke="#ff56aa" stroke-width="0" stroke-dasharray="null" stroke-opacity="null" opacity="undefined" cx="282.29487" cy="191.30903" id="svg_10" rx="11.5" ry="11"/>
+  </g>
+ </g>
+</svg>

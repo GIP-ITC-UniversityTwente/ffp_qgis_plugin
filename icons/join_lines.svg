@@ -1,0 +1,47 @@
+<svg width="640" height="640" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet">
+ <defs>
+  <path d="m385.65,541.99l-23.37,4.75l-45.21,-222.13l23.36,-4.75l45.22,222.13z" id="j62RkUUZAe"/>
+  <path d="m278.73,277.96l-5.22,23.51l-159.58,-35.45l5.22,-23.5l159.58,35.44z" id="a2Q9vn0ugZ"/>
+  <path d="m469.03,147.99l-7.98,22.71l-199.75,-70.19l7.98,-22.71l199.75,70.19z" id="a1xLL4Comq"/>
+  <path d="m326.57,556.71c9.29,-30.02 41.21,-46.84 71.22,-37.54c30.02,9.3 46.84,41.21 37.54,71.23c-9.3,30.01 -41.21,46.83 -71.23,37.53c-30.01,-9.29 -46.83,-41.21 -37.53,-71.22z" id="bhXq1X5uf"/>
+  <path d="m574.13,427.82l-23.36,4.76l-45.22,-222.13l23.37,-4.76l45.21,222.13z" id="a6bleO7ryr"/>
+  <path d="m253.88,294.92c9.29,-30.01 41.21,-46.83 71.22,-37.53c30.02,9.29 46.84,41.21 37.54,71.22c-9.3,30.02 -41.21,46.84 -71.23,37.54c-30.01,-9.3 -46.83,-41.21 -37.53,-71.23z" id="bGYoQ0kTJ"/>
+  <path d="m27.2,225.67c9.29,-30.01 41.21,-46.83 71.22,-37.54c30.02,9.3 46.84,41.22 37.54,71.23c-9.3,30.02 -41.21,46.84 -71.23,37.54c-30.01,-9.3 -46.83,-41.21 -37.53,-71.23z" id="a4naRHXKWl"/>
+  <path d="m174.88,55.37c9.3,-30.01 41.21,-46.83 71.23,-37.54c30.01,9.3 46.83,41.22 37.53,71.23c-9.29,30.01 -41.21,46.83 -71.22,37.54c-30.02,-9.3 -46.84,-41.22 -37.54,-71.23z" id="c371sCG2NP"/>
+  <path d="m442.27,156.59c9.3,-30.01 41.21,-46.83 71.22,-37.53c30.02,9.3 46.84,41.21 37.54,71.22c-9.3,30.02 -41.21,46.84 -71.23,37.54c-30.01,-9.3 -46.83,-41.21 -37.53,-71.23z" id="mnsX1nbCG"/>
+  <path d="m516.49,440.16c9.3,-30.02 41.22,-46.84 71.23,-37.54c30.02,9.3 46.84,41.21 37.54,71.23c-9.3,30.01 -41.21,46.83 -71.23,37.53c-30.01,-9.29 -46.83,-41.21 -37.54,-71.22z" id="f2lGQ33fAy"/>
+ </defs>
+ <g>
+  <title>Layer 1</title>
+  <g id="svg_42" transform="rotate(104.348, 463.461, 430.9)">
+   <use transform="matrix(1.1233, 0, 0, 1, -68.8903, 0)" stroke="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill="#bf00bf" id="svg_39" y="158.90673" x="277.58833"/>
+   <g id="svg_41">
+    <use transform="matrix(1.1233, 0, 0, 1, -68.8903, 0)" fill="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill-opacity="0" stroke="#bf00bf" stroke-width="2" id="svg_40" y="158.90673" x="277.58833"/>
+   </g>
+  </g>
+  <g id="svg_27" transform="rotate(104.083, 198.413, 428.214)">
+   <use transform="matrix(0.804239, 0, 0, 1, 55.7407, 0)" stroke="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill="#bf00bf" id="svg_24" y="156.22018" x="-18.93096"/>
+   <g id="svg_26">
+    <use transform="matrix(0.804239, 0, 0, 1, 55.7407, 0)" fill="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill-opacity="0" stroke="#bf00bf" stroke-width="2" id="svg_25" y="156.22018" x="-18.93096"/>
+   </g>
+  </g>
+  <g id="svg_7" transform="rotate(39.0156, 203.338, 217.568)">
+   <use stroke="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill="#bf00bf" id="svg_8" y="-54.42576" x="7.00674"/>
+   <g id="svg_9">
+    <use fill="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill-opacity="0" stroke="#bf00bf" stroke-width="2" id="svg_10" y="-54.42576" x="7.00674"/>
+   </g>
+  </g>
+  <ellipse ry="59" rx="59" id="svg_1" cy="119" cx="127.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+  <ellipse ry="59" rx="59" id="svg_2" cy="317" cx="252.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+  <ellipse ry="59" rx="59" id="svg_23" cy="525" cx="141.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+  <g id="svg_35" transform="rotate(39.0156, 459.338, 212.568)">
+   <use stroke="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill="#bf00bf" id="svg_32" y="-59.42576" x="263.00674"/>
+   <g id="svg_34">
+    <use fill="#bf00bf" xlink:href="#a2Q9vn0ugZ" fill-opacity="0" stroke="#bf00bf" stroke-width="2" id="svg_33" y="-59.42576" x="263.00674"/>
+   </g>
+  </g>
+  <ellipse ry="59" rx="59" id="svg_36" cy="88" cx="378.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+  <ellipse ry="59" rx="59" id="svg_37" cy="297" cx="529.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+  <ellipse ry="59" rx="59" id="svg_38" cy="560" cx="394.5" opacity="undefined" stroke-dasharray="null" stroke-width="25" stroke="#7f00ff" fill="#56ff56"/>
+ </g>
+</svg>

@@ -1,0 +1,27 @@
+	[general]
+name=FFP Editing Tools
+description=Wrapper for PostGIS functions<br/>used for editing FFP datasets
+version=Version 0.6
+qgisMinimumVersion=3.0
+author=FFP Kadaster Team (UD/UT)
+email=morales@itc.nl
+homepage=https://landinpeace.com
+
+about=Editing functions of the FFP methodology
+icon=ffp.png
+tags=Development<br/>Kadaster<br/>Fit for Purpose
+category=Database
+
+changelog=
+    0.6.2   25-05-2021
+        * Solved the error caused when the attribute table window is closed
+	0.6.1	02-04-2021
+		* Moved error reporting from the console to the main interface
+        * Fixed database parameteres search issue in the layer source object
+	0.6.0	01-04-2021
+		* Added the "Merge Boundaries" action
+		* Modified the format of the message windows
+		* Added support to prevent some types of undesired use of actions
+		* Fixed error preventing editing after saving changes within a session.
+	0.5.0	10-03-2021
+		* First release
