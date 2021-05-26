@@ -2,8 +2,7 @@
 
 ©2021 Javier Morales - <a href="mailto:j.morales@utwente.nl">j.morales@utwente.nl</a>
 
-Editing functions of the FFP methodology
-QGIS Plugin
+Editing functions of the FFP methodology - QGIS Plugin
 
 ### Changelog:
 
