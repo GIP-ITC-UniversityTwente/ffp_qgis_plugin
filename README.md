@@ -38,4 +38,4 @@ QGIS Plugin
 1. Paste the plugin files inside the '_ffp_tools_' folder
 1. Close the File Explorer
 1. Restart QGIS
-1. Follow the instructions in the <a href="https://docs.google.com/document/d/1JRn8NUwioPwa_Xr4G7B67nflTcfu2Z1MwoCtT20ydoE">FFP Post-Processing Manual</a>
+1. Follow the instructions in the <a href="https://docs.google.com/document/d/1JRn8NUwioPwa_Xr4G7B67nflTcfu2Z1MwoCtT20ydoE/edit?usp=sharing">FFP Post-Processing Manual</a>
