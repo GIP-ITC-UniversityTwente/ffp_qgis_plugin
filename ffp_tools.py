@@ -3,10 +3,66 @@ import re
 from datetime import datetime
 from uuid import uuid4
 from PyQt5.QtCore import QSettings, QPoint, Qt
-from PyQt5.QtWidgets import QApplication, QAction, QInputDialog, QDialog, QMessageBox, QVBoxLayout, QHBoxLayout, QRadioButton, QPushButton, QLabel, QDialogButtonBox, QLineEdit, QTextEdit
+from PyQt5.QtWidgets import QApplication, QAction, QInputDialog, QTableWidget, QTableWidgetItem, QComboBox, QDialog, QMessageBox, QVBoxLayout, QHBoxLayout, QRadioButton, QPushButton, QLabel, QDialogButtonBox, QLineEdit, QTextEdit
 from PyQt5.QtGui import QIcon, QFont, QColor
 from qgis.gui import QgsRubberBand
-from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsTransaction, QgsDistanceArea, QgsPoint, QgsGeometry
+from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsDataSourceUri, QgsTransaction, QgsDistanceArea, QgsPoint, QgsGeometry, QgsVectorLayer, QgsFillSymbol, QgsMarkerSymbol, QgsPalLayerSettings, QgsTextFormat, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsVectorLayerSimpleLabeling
+
+
+class setFfpIcon():
+
+    def __init__(self, window = None):
+        if type(window) != type(None):
+            basepath = os.path.dirname(os.path.realpath(__file__))
+            window.icons_folder = os.path.join(basepath, 'icons/')
+            window.setWindowIcon(QIcon(os.path.join(window.icons_folder, 'ffp.png')))
+#---
+
+
+class toleranceDialog(QDialog):
+
+    def __init__(self, objectid):
+        super(toleranceDialog, self).__init__()
+
+        setFfpIcon(self)
+        self.setWindowTitle(" Symplify spatialunit:  %s" % objectid)
+
+        self.distanceLabel = QLabel('Simplification tolerance: ')
+        self.toleranceValue = QLineEdit()
+
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.distanceLabel)
+        hbox1.addWidget(self.toleranceValue)
+        hbox1.addWidget(QLabel('m. '))
+
+        hbox2 = QHBoxLayout()
+        self.saveButton = QPushButton("Execute")
+        self.saveButton.setFixedWidth(120)
+        self.saveButton.clicked.connect(lambda:self.onExecute())
+        hbox2.addWidget(self.saveButton)
+        self.cancelButton = QPushButton("Cancel")
+        self.cancelButton.setFixedWidth(150)
+        self.cancelButton.clicked.connect(lambda:self.onCancel())
+        hbox2.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox1)
+        vbox.addLayout(hbox2)
+        self.setLayout(vbox)
+    #---
+
+    def onCancel(self):
+        self.reject()
+    #---
+
+    def onExecute(self):
+        self.done(1)
+    #---
+
+    def setTolerance(self, toleranceValue):
+        self.toleranceValue.setText(str(toleranceValue))
+    #---
+#---
 
 
 class settingsDialog(QDialog):
@@ -14,10 +70,7 @@ class settingsDialog(QDialog):
     def __init__(self):
         super(settingsDialog, self).__init__()
 
-                                                                                                  
-        basepath = os.path.dirname(os.path.realpath(__file__))
-        self.icons_folder = os.path.join(basepath, 'icons/')
-        self.setWindowIcon(QIcon(os.path.join(self.icons_folder, 'ffp.png')))
+        setFfpIcon(self)
         self.setWindowTitle(" FFP Plugin Settings")
 
         self.distanceLabel = QLabel('Distnace Threshold: ')
@@ -58,15 +111,132 @@ class settingsDialog(QDialog):
 #---
 
 
+class selectSpatialunitDialog(QDialog):
+
+    def __init__(self, layer, items):
+        super(selectSpatialunitDialog, self).__init__()
+
+        setFfpIcon(self)
+        self.setWindowTitle('Spatialunit selection')
+        self.layer = layer
+
+        self.choices = QComboBox()
+        self.choices.addItems(items)
+        self.choices.currentTextChanged.connect(self.onChange)
+
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(QLabel('Select the spatialunit to be deleted:'))
+        vbox.addWidget(self.choices)
+
+
+        hbox = QHBoxLayout()
+        self.okButton = QPushButton("OK")
+        self.okButton.setFixedWidth(120)
+        self.okButton.clicked.connect(lambda:self.onOk())
+        hbox.addWidget(self.okButton)
+        self.cancelButton = QPushButton("Cancel")
+        self.cancelButton.setFixedWidth(150)
+        self.cancelButton.clicked.connect(lambda:self.onCancel())
+        hbox.addWidget(self.cancelButton)
+
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.setSelection(items[0])
+    #---
+
+    def onChange(self, value):
+        self.setSelection(value)
+    #---
+
+    def setSelection(self, objectid):
+        self.layer.selectByExpression('"objectid"=%s' % (objectid))
+    #---
+
+    def onOk(self):
+        self.done(int(self.choices.currentText()))
+    #---
+
+    def onCancel(self):
+        self.reject()
+    #---
+#---
+
+
+class tableWindow(QDialog):
+
+    def __init__(self):
+        super(tableWindow, self).__init__()
+
+        setFfpIcon(self)
+        self.setWindowTitle(' Records Associated with spatialunit: ')
+
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setColumnCount(3)
+        self.tableWidget.setHorizontalHeaderLabels(['Table', 'Details', 'GlobalID'])
+
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        self.tableWidget.setColumnWidth(0, 300)
+        self.tableWidget.setColumnWidth(1, 400)
+        self.tableWidget.setColumnWidth(2, 600)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.tableWidget)
+
+        self.question = QLabel('\nDo you want to deleete these records?\n')
+        self.question.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(self.question)
+
+        hbox = QHBoxLayout()
+        self.okButton = QPushButton("Yes")
+        self.okButton.setFixedWidth(120)
+        self.okButton.clicked.connect(lambda:self.onYes())
+        hbox.addWidget(self.okButton)
+        self.cancelButton = QPushButton("Cancel")
+        self.cancelButton.setFixedWidth(150)
+        self.cancelButton.clicked.connect(lambda:self.onCancel())
+        hbox.addWidget(self.cancelButton)
+
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+    #---
+
+    def setData(self, id, records, iface):
+        self.tableWidget.setRowCount(len(records))
+        for i, (table, desc, globalid) in enumerate(records):
+            self.tableWidget.setItem(i,0, QTableWidgetItem(table))
+            self.tableWidget.setItem(i,1, QTableWidgetItem(desc))
+            self.tableWidget.setItem(i,2, QTableWidgetItem(globalid))
+
+        if len(records) < 3:
+            extraHeight = 0
+        elif len(records) > 10:
+            extraHeight = 480
+        else:
+            extraHeight = (len(records) - 2) * 70
+
+        self.setWindowTitle(' Records Associated with spatialunit: %s' % id)
+        self.setGeometry(0, 0, 1400, 390 + extraHeight)
+        self.move(iface.mapCanvas().mapToGlobal(QPoint(50, 75)))
+    #---
+
+    def onYes(self):
+        self.done(QMessageBox.Yes)
+    #---
+
+    def onCancel(self):
+        self.reject()
+    #---
+#---
+
+
 class moveOneToTwoWindow(QDialog):
 
     def __init__(self):
         super(moveOneToTwoWindow, self).__init__()
 
-                                                                                                  
-        basepath = os.path.dirname(os.path.realpath(__file__))
-        self.icons_folder = os.path.join(basepath, 'icons/')
-        self.setWindowIcon(QIcon(os.path.join(self.icons_folder, 'ffp.png')))
+        setFfpIcon(self)
         self.setWindowTitle(" Move Point -1- to -2-")
 
         vbox = QVBoxLayout()
@@ -98,9 +268,9 @@ class moveOneToTwoWindow(QDialog):
 
     def onChange(self):
         if self.radio1.isChecked():
-            self.sqlSession.executeSql("""SELECT mueva_1_a_2(%s, %s, false);""" % (self.pointIds[0], self.pointIds[1]), False)
+            self.sqlSession.executeSql("""SELECT ffp_mueva_1_a_2(%s, %s, false);""" % (self.pointIds[0], self.pointIds[1]), False)
         elif self.radio2.isChecked():
-            self.sqlSession.executeSql("""SELECT mueva_1_a_2(%s, %s, false);""" % (self.pointIds[1], self.pointIds[0]), False)
+            self.sqlSession.executeSql("""SELECT ffp_mueva_1_a_2(%s, %s, false);""" % (self.pointIds[1], self.pointIds[0]), False)
         self.iface.mapCanvas().refreshAllLayers()
         self.okButton.setEnabled(True)
     #---
@@ -134,10 +304,7 @@ class actionWindow(QDialog):
     def __init__(self, iface, title = 'FFP Window', choiceWindow = True, width = None, left = 50, top = 75):
         super(actionWindow, self).__init__()
 
-                                                                                                  
-        basepath = os.path.dirname(os.path.realpath(__file__))
-        self.icons_folder = os.path.join(basepath, 'icons/')
-        self.setWindowIcon(QIcon(os.path.join(self.icons_folder, 'ffp.png')))
+        setFfpIcon(self)
         self.setWindowTitle(title)
 
         if choiceWindow:
@@ -217,6 +384,52 @@ class actionWindow(QDialog):
 #---
 
 
+class simplifyMsgWindow(QDialog):
+
+    def __init__(self, plugin, sqlCode, polygon):
+        super(simplifyMsgWindow, self).__init__()
+        self.plugin = plugin
+        self.sqlCode = sqlCode
+        self.polygon = polygon
+        self.userAction = True
+
+        setFfpIcon(self)
+        self.setWindowTitle(' Check the Results')
+        self.move(self.plugin.iface.mapCanvas().mapToGlobal(QPoint(50, 75)))
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog)
+
+        self.setMaximumWidth(450)
+        self.setMinimumWidth(450)
+        self.setMaximumHeight(450)
+
+        self.questionText = QLabel('\nClick OK to complete the operation...\n')
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.questionText)
+
+        hbox = QHBoxLayout()
+        self.okButton = QPushButton("OK")
+        self.okButton.clicked.connect(lambda:self.onOk())
+        hbox.addWidget(self.okButton)
+        hbox.setAlignment(Qt.AlignRight)
+
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+    #---
+
+    def onOk(self):
+        self.userAction = False
+        self.close()
+        self.plugin.endSimplify(self.sqlCode, self.polygon)
+    #---
+
+    def closeEvent(self, evt):
+        if self.userAction:
+            self.plugin.endSimplify(self.sqlCode, self.polygon)
+    #---
+#---
+
+
 class mergePanel(QDialog):
 
     def __init__(self, plugin, details = None, width = None, left = 50, top = 75):
@@ -224,18 +437,14 @@ class mergePanel(QDialog):
         self.plugin = plugin
         self.userAction = True
 
-                                                                                                  
-        basepath = os.path.dirname(os.path.realpath(__file__))
-        self.icons_folder = os.path.join(basepath, 'icons/')
-        self.setWindowIcon(QIcon(os.path.join(self.icons_folder, 'ffp.png')))
-        self.move(self.plugin.iface.mapCanvas().mapToGlobal(QPoint(left, top)))
+        setFfpIcon(self)
         self.setWindowTitle(' Merge Lines Info Panel')
+        self.move(self.plugin.iface.mapCanvas().mapToGlobal(QPoint(left, top)))
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog)
 
         if width > 450:
             self.setMaximumWidth(width)
         self.setMinimumWidth(450)
-        self.setMaximumHeight(350)
 
         self.mainText = QLabel('Operation Details:')
 
@@ -290,7 +499,6 @@ class FfpToolsPlugin:
     def __init__(self, iface):
         self.iface = iface
 
-                                                                                                  
         basepath = os.path.dirname(os.path.realpath(__file__))
         self.icons_folder = os.path.join(basepath, 'icons/')
 
@@ -298,6 +506,7 @@ class FfpToolsPlugin:
         self.calculator = QgsDistanceArea()
         self.calculator.setEllipsoid('WGS84')
         self.thresholdValue = 2.5
+        self.toleranceValue = 0.5
         self.schema = 'load'
         self.activeSession = False
 
@@ -323,7 +532,7 @@ class FfpToolsPlugin:
         self.actions.append(refreshAction)
 
         icon = os.path.join(os.path.join(self.icons_folder, 'move_1_to_2.svg'))
-        moveonetotwoAction = QAction(QIcon(icon), 'MMove 1 to 2', self.iface.mainWindow())
+        moveonetotwoAction = QAction(QIcon(icon), 'Move 1 to 2', self.iface.mainWindow())
         moveonetotwoAction.setToolTip("""
             <b>Move 1 to 2</b>
             Move point -1- to the position of point -2-&nbsp;""")
@@ -362,10 +571,19 @@ class FfpToolsPlugin:
         projectpointAction = QAction(QIcon(icon), 'Project Point', self.iface.mainWindow())
         projectpointAction.setToolTip("""
             <b>Project Point</b>
-            Creates a new vertex on the boundary of a spatialunit at the closest position to a given source point&nbsp;""")
+            Create a new vertex on the boundary of a spatialunit at the closest position to a given source point&nbsp;""")
         projectpointAction.setDisabled(True)
         projectpointAction.triggered.connect(self.projectPoint)
         self.actions.append(projectpointAction)
+
+        icon = os.path.join(os.path.join(self.icons_folder, 'project_vertex.svg'))
+        projectvertexAction = QAction(QIcon(icon), 'Project Vertex', self.iface.mainWindow())
+        projectvertexAction.setToolTip("""
+            <b>Project Vertex</b>
+            Create a projected vertex on the boundary of a chosen spatialunit&nbsp;""")
+        projectvertexAction.setDisabled(True)
+        projectvertexAction.triggered.connect(self.projectVertex)
+        self.actions.append(projectvertexAction)
 
         icon = os.path.join(os.path.join(self.icons_folder, 'join_lines.svg'))
         joinlinesAction = QAction(QIcon(icon), 'Join Adjacent Points', self.iface.mainWindow())
@@ -394,6 +612,24 @@ class FfpToolsPlugin:
         deletepointAction.triggered.connect(self.deletePoint)
         self.actions.append(deletepointAction)
 
+        icon = os.path.join(os.path.join(self.icons_folder, 'delete_polygon.svg'))
+        deletepolygontAction = QAction(QIcon(icon), 'Delete Spatialunit', self.iface.mainWindow())
+        deletepolygontAction.setToolTip("""
+            <b>Delete Spatialunit</b>
+            Remove a specific spatilaunit and all its associated data (right, attachmets, etc.)&nbsp;""")
+        deletepolygontAction.setDisabled(True)
+        deletepolygontAction.triggered.connect(self.deletePolygon)
+        self.actions.append(deletepolygontAction)
+
+        icon = os.path.join(os.path.join(self.icons_folder, 'simplify.svg'))
+        simplifyAction = QAction(QIcon(icon), 'Simplify Boundaries', self.iface.mainWindow())
+        simplifyAction.setToolTip("""
+            <b>Merge Boundaries</b>
+            Merge the boundaries of two adjacent spatialunits&nbsp;""")
+        simplifyAction.setDisabled(True)
+        simplifyAction.triggered.connect(self.simplifyBoundaries)
+        self.actions.append(simplifyAction)
+
         icon = os.path.join(os.path.join(self.icons_folder, 'merge.png'))
         mergeAction = QAction(QIcon(icon), 'Merge Boundaries', self.iface.mainWindow())
         mergeAction.setToolTip("""
@@ -411,6 +647,15 @@ class FfpToolsPlugin:
         settingsAction.setDisabled(True)
         settingsAction.triggered.connect(self.setSettings)
         self.actions.append(settingsAction)
+
+        icon = os.path.join(os.path.join(self.icons_folder, 'styling.svg'))
+        resetStyles = QAction(QIcon(icon), 'Reset Styles', self.iface.mainWindow())
+        resetStyles.setToolTip("""
+            <b>Reset Styles</b>
+            Use the default layers styles&nbsp;""")
+        resetStyles.setDisabled(True)
+        resetStyles.triggered.connect(self.resetStyles)
+        self.actions.append(resetStyles)
 
         icon = os.path.join(os.path.join(self.icons_folder, 'undo.svg'))
         undoAction = QAction(QIcon(icon), 'Undo', self.iface.mainWindow())
@@ -452,9 +697,7 @@ class FfpToolsPlugin:
         for action in self.actions:
             self.toolbar.addAction(action)
 
-        if  len(QgsProject.instance().mapLayers().values()) > 0:
-            self.actions[0].setEnabled(True)
-            self.actions[1].setEnabled(True)
+        self.actions[0].setEnabled(True)
 
         print('Ready...')
     #---
@@ -469,6 +712,7 @@ class FfpToolsPlugin:
         if len(QgsProject.instance().mapLayers().values()) == 0:
             for action in self.actions:
                 action.setDisabled(True)
+            self.actions[0].setEnabled(True)
     #---
 
 
@@ -481,22 +725,26 @@ class FfpToolsPlugin:
         for action in self.actions:
             action.setDisabled(True)
         self.actions[0].setEnabled(True)
-        self.actions[1].setEnabled(True)
+        # self.actions[1].setEnabled(True)
     #---
 
 
     def startEditSession(self):
-        if len(QgsProviderRegistry.instance().providerMetadata('postgres').dbConnections()) == 0:
+        if QgsProject.instance().readPath('./') == './':
+            self.iface.messageBar().pushMessage('Message', 'Save the current project to disk before using this plugin...', level=Qgis.Info)
+        elif len(QgsProviderRegistry.instance().providerMetadata('postgres').dbConnections()) == 0:
             self.iface.messageBar().pushMessage('Message', 'There are no PostGIS connections available...', level=Qgis.Info)
         else:
             connections = QgsProviderRegistry.instance().providerMetadata('postgres').dbConnections().keys().__str__()
             connections = connections.replace('dict_keys([','').replace('])','').replace("'",'')
             connectionList = connections.split(', ')
 
-            self.connectionName, ok = QInputDialog.getItem(self.iface.mainWindow(), ' Select Connection', 'PostGIS Connections', connectionList, 1)
+            self.connectionName, ok = QInputDialog.getItem(self.iface.mainWindow(), ' PostGIS Connections', 'Select the database connection to use: ', connectionList, 1)
 
             if ok:
                 self.pgConnection = QgsProviderRegistry.instance().providerMetadata('postgres').findConnection(self.connectionName)
+                self.params = dict(item.split("=") for item in self.pgConnection.uri().replace("'",'').split(' '))
+
                 message, ready = self.checkLayers(True)
 
                 if not ready:
@@ -511,12 +759,34 @@ class FfpToolsPlugin:
                         dlg.findChild(QAction,'mActionSelectedFilter').trigger()
                     self.iface.setActiveLayer(self.pointsLayer)
 
+                #-----------
+                    sqlCode = """
+                        DROP TABLE IF EXISTS scratchpad;
+                        CREATE TABLE scratchpad
+                        (
+                            col1 character varying,
+                            col2 character varying,
+                            col3 character varying,
+                            geom geometry(PointZ,4326)
+                        );
+                    """
+                    self.runSql(sqlCode)
+
+                    resultsConn = QgsDataSourceUri()
+                    resultsConn.setConnection(self.params['host'], self.params['port'], self.params['dbname'], self.params['user'], self.params['password'], 1)
+
+                    resultsConn.setDataSource(self.schema, 'scratchpad', 'geom', None, 'tid')
+                    self.resultsLayer = QgsVectorLayer(resultsConn.uri(True), "scratchpad", "postgres")
+                #-----------
+
+
                     self.initLog()
                     self.runSql('TRUNCATE pto_ajuste;')
                     self.refresh(True)
                     self.pgSession = QgsTransaction.create(self.pgConnection.uri(), 'postgres')
-                    self.pgSession.addLayer(self.pointsLayer)
+                    self.pgSession.addLayer(self.resultsLayer)
                     self.pgSession.addLayer(self.scratchLayer)
+                    self.pgSession.addLayer(self.pointsLayer)
                     self.pgSession.addLayer(self.spatialunitsLayer)
                     self.pgSession.begin()
                     self.pgSession.executeSql('SET search_path to %s, public' % (self.schema))
@@ -524,6 +794,7 @@ class FfpToolsPlugin:
                     self.undoMessages = []
 
                     self.threshold = self.thresholdValue
+                    self.tolerance = self.toleranceValue
                     self.thresholdMsg = self.defaultThresholdMsg.replace('0000', str(self.threshold))
                     self.settingsWindow = settingsDialog()
 
@@ -547,7 +818,7 @@ class FfpToolsPlugin:
             self.threshold = float(self.settingsWindow.distanceValue.text())
             self.thresholdMsg = self.defaultThresholdMsg.replace('0000', str(self.threshold))
             logCode = '--- *****\n'
-            logCode += ('-- distance threshold changed to: %s m\n' % (self.threshold))
+            logCode += ('-- Distance threshold changed to: %s m\n' % (self.threshold))
             logCode += '--- *****\n\n'
             self.log(logCode)
     #---
@@ -558,29 +829,28 @@ class FfpToolsPlugin:
         ready = False
         message = ('The required tables are not available for connection "%s". Please include "puntos_predio", "pto_ajuste" & "spatialunit" to the project...' % (self.connectionName))
 
+        databaseName = self.params['dbname']
+        layerCheck = [False, False, False]
         if len(layerList) > 0:
-            databaseName = re.findall(r"'(.*?)'", self.pgConnection.uri().split(' ')[0])[0]
-            layerCheck = [False, False, False]
             for layer in layerList:
                 if layer.providerType() == 'postgres':
                     source = layer.dataProvider().dataSourceUri().split(' ')
                     databaseValue = None
                     tableName = None
-                                                                          
-                                                                      
+
                     for el in source:
                         if 'table' in el:
                             tableName = re.findall(r'"(.*?)"', el)[1]
                         if 'dbname' in el:
                             databaseValue = re.findall(r"'(.*?)'", el)[0]
-                    if databaseValue == databaseName and tableName == 'puntos_predio':
+                    if databaseValue == databaseName and tableName == 'pto_ajuste':
                         layerCheck[0] = True
                         if setLayers:
-                            self.pointsLayer = layer
-                    if databaseValue == databaseName and tableName == 'pto_ajuste':
+                            self.scratchLayer = layer
+                    if databaseValue == databaseName and tableName == 'puntos_predio':
                         layerCheck[1] = True
                         if setLayers:
-                            self.scratchLayer = layer
+                            self.pointsLayer = layer
                     if databaseValue == databaseName and tableName == 'spatialunit':
                         layerCheck[2] = True
                         if setLayers:
@@ -589,6 +859,43 @@ class FfpToolsPlugin:
             if layerCheck.count(True) == 3:
                 ready = True
                 message = ''
+
+        if setLayers and len(layerList) < 3:
+            if not layerCheck[2]:
+                if self.pgConnection.tableExists(self.schema,'spatialunit'):
+                    conn2 = QgsDataSourceUri()
+                    conn2.setConnection(self.params['host'], self.params['port'], self.params['dbname'], self.params['user'], self.params['password'], 1)
+                    conn2.setDataSource(self.schema, 'spatialunit', 'geom', None, 'tid')
+                    self.spatialunitsLayer = QgsVectorLayer(conn2.uri(True), "spatialunit", "postgres")
+                    QgsProject.instance().addMapLayer(self.spatialunitsLayer)
+                    layerCheck[2] = True
+                    self.setStyle(2)
+                    print("layer 'spatialunit' added...")
+            if not layerCheck[1]:
+                if self.pgConnection.tableExists(self.schema,'puntos_predio'):
+                    conn1 = QgsDataSourceUri()
+                    conn1.setConnection(self.params['host'], self.params['port'], self.params['dbname'], self.params['user'], self.params['password'], 1)
+                    conn1.setDataSource(self.schema, 'puntos_predio', 'geom', None, 'tid')
+                    self.pointsLayer = QgsVectorLayer(conn1.uri(True), "puntos_predio", "postgres")
+                    QgsProject.instance().addMapLayer(self.pointsLayer)
+                    layerCheck[1] = True
+                    self.setStyle(1)
+                    print("layer 'puntos_predio' added...")
+            if not layerCheck[0]:
+                if self.pgConnection.tableExists(self.schema,'pto_ajuste'):
+                    conn0 = QgsDataSourceUri()
+                    conn0.setConnection(self.params['host'], self.params['port'], self.params['dbname'], self.params['user'], self.params['password'], 1)
+                    conn0.setDataSource(self.schema, 'pto_ajuste', 'geom', None, 'tid')
+                    self.scratchLayer = QgsVectorLayer(conn0.uri(True), "pto_ajuste", "postgres")
+                    QgsProject.instance().addMapLayer(self.scratchLayer)
+                    layerCheck[0] = True
+                    self.setStyle(0)
+                    print("layer 'pto_ajuste' added...")
+
+            if layerCheck.count(True) == 3:
+                ready = True
+                message = ''
+                self.actions[1].setEnabled(True)
 
         if not ready and self.activeSession:
             self.pgSession.rollback()
@@ -603,6 +910,80 @@ class FfpToolsPlugin:
             self.iface.messageBar().pushMessage('Operation not possible', message, level=Qgis.Info)
 
         return message, ready
+    #---
+
+
+    def resetStyles(self):
+        message, ok = self.checkLayers()
+        if ok:
+            self.setStyle(0)
+            self.setStyle(1)
+            self.setStyle(2)
+            self.iface.mapCanvas().setMagnificationFactor(self.iface.mainWindow().physicalDpiX()/self.iface.mainWindow().logicalDpiX())
+    #---
+
+
+    def setStyle(self, layer):
+        if layer == 0:
+            sym = QgsMarkerSymbol.createSimple({'angle': '0', 'color': '219,11,25,229', 'horizontal_anchor_point': '1', 'joinstyle': 'bevel', \
+                'name': 'diamond', 'offset': '0,0', 'offset_map_unit_scale': '3x:0,0,0,0,0,0', 'offset_unit': 'MM', 'outline_color': '161,13,26,255', \
+                'outline_style': 'solid', 'outline_width': '0.2', 'outline_width_map_unit_scale': '3x:0,0,0,0,0,0', 'outline_width_unit': 'MM', \
+                'scale_method': 'diameter', 'size': '2.2', 'size_map_unit_scale': '3x:0,0,0,0,0,0', 'size_unit': 'MM', 'vertical_anchor_point': '1'})
+            self.scratchLayer.renderer().setSymbol(sym)
+            self.scratchLayer.triggerRepaint()
+            self.iface.layerTreeView().refreshLayerSymbology(self.scratchLayer.id())
+        if layer == 2:
+            sym = QgsFillSymbol.createSimple({'color': '165,191,221,126', \
+                'outline_color': '33,119,210,255', 'outline_style': 'solid', 'outline_width': '0.25'})
+            self.spatialunitsLayer.renderer().setSymbol(sym)
+            lbl_sett = QgsPalLayerSettings()
+            lbl_sett.fieldName = 'objectid'
+            lbl_format = QgsTextFormat()
+            lbl_format.setSize(6)
+            lbl_sett.setFormat(lbl_format)
+            self.spatialunitsLayer.setLabelsEnabled(True)
+            self.spatialunitsLayer.setLabeling(QgsVectorLayerSimpleLabeling(lbl_sett))
+            self.spatialunitsLayer.triggerRepaint()
+            self.iface.layerTreeView().refreshLayerSymbology(self.spatialunitsLayer.id())
+
+        if layer == 1:
+            sym1 = QgsMarkerSymbol.createSimple({'angle': '0', 'color': '247,128,30,255', 'horizontal_anchor_point': '1', 'joinstyle': 'bevel', \
+                'name': 'circle', 'offset': '0,0', 'offset_map_unit_scale': '3x:0,0,0,0,0,0', 'offset_unit': 'MM', \
+                'outline_color': '35,35,35,255', 'outline_style': 'solid', 'outline_width': '0', 'outline_width_map_unit_scale': '3x:0,0,0,0,0,0', \
+                'outline_width_unit': 'MM', 'scale_method': 'diameter', 'size': '1.8', 'size_map_unit_scale': '3x:0,0,0,0,0,0', 'size_unit': 'MM', \
+                'vertical_anchor_point': '1'})
+            sym2 = QgsMarkerSymbol.createSimple({'angle': '0', 'color': '0,224,90,204', 'horizontal_anchor_point': '1', 'joinstyle': 'bevel', \
+                'name': 'circle', 'offset': '0,0', 'offset_map_unit_scale': '3x:0,0,0,0,0,0', 'offset_unit': 'MM', \
+                'outline_color': '44,136,56,255', 'outline_style': 'solid', 'outline_width': '0', 'outline_width_map_unit_scale': '3x:0,0,0,0,0,0', \
+                'outline_width_unit': 'MM', 'scale_method': 'diameter', 'size': '1.8', 'size_map_unit_scale': '3x:0,0,0,0,0,0', 'size_unit': 'MM', \
+                'vertical_anchor_point': '1'})
+            sym3 = QgsMarkerSymbol.createSimple({'angle': '0', 'color': '149,149,149,255', 'horizontal_anchor_point': '1', 'joinstyle': 'bevel', \
+                'name': 'circle', 'offset': '0,0', 'offset_map_unit_scale': '3x:0,0,0,0,0,0', 'offset_unit': 'MM', \
+                'outline_color': '80,80,80,255', 'outline_style': 'solid', 'outline_width': '0', 'outline_width_map_unit_scale': '3x:0,0,0,0,0,0', \
+                'outline_width_unit': 'MM', 'scale_method': 'diameter', 'size': '1.5', 'size_map_unit_scale': '3x:0,0,0,0,0,0', 'size_unit': 'MM', \
+                'vertical_anchor_point': '1'})
+
+            cat1 = QgsRendererCategory('A', sym1, 'A')
+            cat2 = QgsRendererCategory('T', sym2, 'T')
+            cat3 = QgsRendererCategory('', sym3, '...')
+
+            renderer = QgsCategorizedSymbolRenderer()
+            renderer.addCategory(cat1)
+            renderer.addCategory(cat2)
+            renderer.addCategory(cat3)
+            renderer.setClassAttribute('label')
+            self.pointsLayer.setRenderer(renderer)
+
+            lbl_sett = QgsPalLayerSettings()
+            lbl_sett.fieldName = 'pto'
+            lbl_format = QgsTextFormat()
+            lbl_format.setSize(4)
+
+            lbl_sett.setFormat(lbl_format)
+            self.pointsLayer.setLabelsEnabled(True)
+            self.pointsLayer.setLabeling(QgsVectorLayerSimpleLabeling(lbl_sett))
+
+            self.pointsLayer.triggerRepaint()
     #---
 
 
@@ -623,7 +1004,8 @@ class FfpToolsPlugin:
         f.write('-- port:     %s\n' % (qs.value('PostgreSQL/connections/' + self.connectionName + '/port')))
         f.write('-- database: %s\n' % (qs.value('PostgreSQL/connections/' + self.connectionName + '/database')))
         f.write('-----------------------------------\n')
-        f.write('-- distance threshold: %s m\n' % (self.thresholdValue))
+        f.write('-- distance threshold:       %s m\n' % (self.thresholdValue))
+        f.write('-- simplification tolerance: %s m\n' % (self.toleranceValue))
         f.write('-----------------------------------\n\n')
         f.close()
     #---
@@ -713,29 +1095,40 @@ class FfpToolsPlugin:
     def commitChanges(self):
         message, ok = self.checkLayers()
         if ok:
-            OK, message = self.pgSession.commit()
-            for action in self.actions:
-                if action.text() in ['Undo', 'Commit']:
-                    action.setDisabled(True)
-                elif action.text() == 'Merge Boundaries':
-                    action.setEnabled(True)
+            msgBox = QMessageBox()
+            msgBox.setWindowIcon(QIcon(os.path.join(self.icons_folder, 'ffp.png')))
+            msgBox.setWindowTitle(' Commit Changes')
+            msgBox.setText('Commit the changes to the database?    ')
+            msgBox.setInformativeText('This action cannot be undone...   \n')
+            msgBox.setStandardButtons(QMessageBox.Cancel | QMessageBox.Yes)
+            msgBox.adjustSize()
+            choice = msgBox.exec()
 
-            successMsg = 'All changes were committed succesfully'
-            print(successMsg + '\n---')
-            self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
-            self.log('-- ******* ' + successMsg.upper() + ' *******')
+            if choice == QMessageBox.Yes:
+                ok, message = self.pgSession.commit()
+                for action in self.actions:
+                    if action.text() in ['Undo', 'Commit']:
+                        action.setDisabled(True)
+                    elif action.text() == 'Merge Boundaries':
+                        action.setEnabled(True)
 
-            del(self.pgSession)
-            self.pgSession = QgsTransaction.create(self.pgConnection.uri(), 'postgres')
-            self.pgSession.addLayer(self.pointsLayer)
-            self.pgSession.addLayer(self.scratchLayer)
-            self.pgSession.addLayer(self.spatialunitsLayer)
-            self.pgSession.begin()
-            self.pgSession.executeSql('SET search_path to %s, public' % (self.schema))
+                successMsg = 'All changes were committed succesfully'
+                print(successMsg + '\n---')
+                self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
+                self.log('-- ******* ' + successMsg.upper() + ' *******')
 
-            self.sessionIsDirty = False
-            self.undoMessages = []
-            QgsProject.instance().setDirty(False)
+                del(self.pgSession)
+                self.pgSession = QgsTransaction.create(self.pgConnection.uri(), 'postgres')
+                self.pgSession.addLayer(self.resultsLayer)
+                self.pgSession.addLayer(self.pointsLayer)
+                self.pgSession.addLayer(self.scratchLayer)
+                self.pgSession.addLayer(self.spatialunitsLayer)
+                self.pgSession.begin()
+                self.pgSession.executeSql('SET search_path to %s, public' % (self.schema))
+
+                self.sessionIsDirty = False
+                self.undoMessages = []
+                QgsProject.instance().setDirty(False)
     #---
 
 
@@ -773,14 +1166,15 @@ class FfpToolsPlugin:
                 self.iface.messageBar().pushMessage('Editing session ended', message, level=Qgis.Info)
                 print(message + '\n---')
                 self.log('-- ***** SESSION ENDED - ' + message.upper() + ' *****')
+                self.dropScratchpad()
                 self.activeSession = False
                 QgsProject.instance().setDirty(False)
     #---
 
 
     def orderPointSets(self, sets):
-        setList = zip(sets['ids'], sets['pos'], sets['lbl'])
-        sets['ids'], sets['pos'], sets['lbl'] = zip(*sorted(setList))
+        setList = zip(sets['pos'], sets['ids'], sets['lbl'])
+        sets['pos'], sets['ids'], sets['lbl'] = zip(*sorted(setList))
         points = {'ids':[], 'pos':[], 'lbl':[]}
         idx = 0
         for x in range(len(sets['ids'])):
@@ -789,7 +1183,7 @@ class FfpToolsPlugin:
                 points['pos'].append(sets['pos'][x])
                 points['lbl'].append(sets['lbl'][x])
             else:
-                if sets['ids'][x] == points['ids'][-1] + 1:
+                if sets['pos'][x] == points['pos'][-1] + 1:
                     points['ids'].append(sets['ids'][x])
                     points['pos'].append(sets['pos'][x])
                     points['lbl'].append(sets['lbl'][x])
@@ -798,6 +1192,7 @@ class FfpToolsPlugin:
                     points['pos'].insert(idx, sets['pos'][x])
                     points['lbl'].insert(idx, sets['lbl'][x])
                     idx += 1
+
         return points
     #---
 
@@ -811,20 +1206,21 @@ class FfpToolsPlugin:
                 message = 'An incorrect number of features is currently are selected  from layer "puntos_predio"... '
                 self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
             else:
-                spatialunitIds = []
+                spatialunitIdCounts = []
                 for feature in features:
-                    spatialunitIds.append(feature['id_pol'])
+                    spatialunitIdCounts.append(feature['id_pol'])
 
-                spatialunitIds = dict([[x, spatialunitIds.count(x)] for x in set(spatialunitIds)])
+                spatialunitIdCounts = dict([[x, spatialunitIdCounts.count(x)] for x in set(spatialunitIdCounts)])
                 pointSets = {}
                 droppedPoints = []
                 anchors = 0
                 vertices = 0
-                for item in spatialunitIds.items():
+                for item in spatialunitIdCounts.items():
                     if item[1] > 1:
                         pointSets[item[0]] = {'ids':[], 'pos':[], 'lbl':[]}
+
                 for feature in features:
-                    if spatialunitIds[feature['id_pol']] == 1:
+                    if spatialunitIdCounts[feature['id_pol']] == 1:
                         droppedPoints.append([feature['pto'], feature['id_pol']])
                     else:
                         pointSets[feature['id_pol']]['ids'].append(feature['pto'])
@@ -834,6 +1230,7 @@ class FfpToolsPlugin:
                             anchors += 1
                         else:
                             vertices += 1
+
                 spatialunitIds = list(pointSets.keys())
                 correctPoints = True
                 for key in pointSets:
@@ -841,11 +1238,11 @@ class FfpToolsPlugin:
                     if pointSets[key]['lbl'][0] != 'A' or pointSets[key]['lbl'][-1] != 'A':
                         correctPoints = False
 
+
                 if anchors > 4 or vertices < 1 or not correctPoints:
                     message = 'The selected points do not correspond to "Vertex" & "Anchor" points of a shared boundary betewwn two spatialunits...'
                     self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
                 else:
-                    print(pointSets)
                     key1 = spatialunitIds[0]
                     key2 = spatialunitIds[1]
 
@@ -866,7 +1263,7 @@ class FfpToolsPlugin:
                         end2 = True
 
                     if end1 and end2:
-                        self.mergeDetails = '<p><b>Points ignored:</b><br/>%s</p>' % ', '.join(str(x) for x in droppedPoints)
+                        self.mergeDetails = '<p><b>Points ignored:</b><br/>%s</p>' % ', '.join((str(x)).replace(',',' :') for x in droppedPoints)
                         self.mergeDetails += "<p><b>Boundaries to be merged:</b>"
                         self.mergeUndoDetails = ''
                         for key in pointSets:
@@ -876,9 +1273,9 @@ class FfpToolsPlugin:
 
                         sqlCode = ("""
                             WITH l1 AS (
-                                SELECT * FROM puntos_predio
+                                SELECT row_number() over(ORDER BY num_pto), * FROM puntos_predio
                                 WHERE id_pol = %s AND pto in (%s)
-                                ORDER BY num_pto > %s DESC, pto
+                                ORDER BY num_pto > %s DESC, 1
                             ), p1 AS (
                                 SELECT id_pol, pto AS pto1, LEAD(pto, 1) OVER() as pto2,
                                     geom AS vertex1, LEAD(geom ,1) OVER() AS vertex2
@@ -889,9 +1286,9 @@ class FfpToolsPlugin:
                                 FROM p1
                                 WHERE pto2 IS NOT NULL
                             ), l2 AS (
-                                SELECT * FROM puntos_predio
+                                SELECT row_number() over(ORDER BY num_pto), * FROM puntos_predio
                                 WHERE id_pol = %s AND pto IN (%s)
-                                ORDER BY num_pto > %s DESC, pto
+                                ORDER BY num_pto > %s DESC, 1
                             ), p2 AS (
                                 SELECT id_pol, pto AS pto1, LEAD(pto, 1) OVER() as pto2,
                                     geom AS vertex1, LEAD(geom ,1) OVER() AS vertex2
@@ -980,7 +1377,7 @@ class FfpToolsPlugin:
                             msgWin.show()
                         else:
                             msgBox = actionWindow(self.iface, 'Operation not possible', False)
-                            msgBox.setMainText("som distnaces are outside the threshold of %s m" % (self.threshold))
+                            msgBox.setMainText("Some distnaces are outside the threshold of %s m" % (self.threshold))
                             msgBox.setDescriptionText(self.mergeDetails)
                             msgBox.adjustSize()
                             msgBox.exec()
@@ -1001,14 +1398,14 @@ class FfpToolsPlugin:
         logCode = 'BEGIN;\n\n'
         for item in self.mergeRecords:
             if item[6] > 0.0:
-                sqlCode = ("""SELECT proyectar_punto(%s, %s);""" %(item[1], item[3]))
+                sqlCode = ("""SELECT ffp_proyectar_punto(%s, %s);""" %(item[1], item[3]))
                 self.pgQuery(sqlCode, True, addSavePoint)
                 logCode += '  ' + sqlCode + '\n'
                 addSavePoint = False
 
                 idList = item[2].replace('{','').replace('}','')
                 pointIds = idList.split(',')
-                sqlCode = """SELECT nuevo_punto_proyectado(%s);""" % (idList)
+                sqlCode = """SELECT ffp_nuevo_punto_proyectado(%s);""" % (idList)
                 self.pgQuery(sqlCode, False, False)
                 logCode += '  ' + sqlCode + '\n'
 
@@ -1017,7 +1414,7 @@ class FfpToolsPlugin:
                     % (newId, item[3], pointIds[0], pointIds[1]))
                 logCode += '    -- ' + successMsg + '\n'
 
-                sqlCode = """SELECT ver_pto_medio(%s, %s, true);""" % (item[1], newId)
+                sqlCode = """SELECT ffp_ver_pto_medio(%s, %s, true);""" % (item[1], newId)
                 self.pgQuery(sqlCode, True, False)
                 logCode += '  ' + sqlCode + '\n'
                 logCode += '    -- Points %s, %s were joined\n\n' % (item[1], newId)
@@ -1044,6 +1441,69 @@ class FfpToolsPlugin:
     #---
 
 
+    def simplifyBoundaries(self):
+        message, ok = self.checkLayers()
+        if ok:
+            features = self.spatialunitsLayer.selectedFeatures()
+            count = len(features)
+
+            if count != 1:
+                message = 'Select (only) one spatialunit there are %s currently seleected... ' % count
+                self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
+            else:
+                targetPolygon =     features[0]['objectid']
+                toleranceWindow = toleranceDialog(targetPolygon)
+                toleranceWindow.setTolerance(self.tolerance)
+                choice = toleranceWindow.exec()
+                if choice == 1:
+                    if self.tolerance != float(toleranceWindow.toleranceValue.text()):
+                        self.tolerance = float(toleranceWindow.toleranceValue.text())
+                        logCode = '--- *****\n'
+                        logCode += ('-- Simplification tolerance set to: %s m\n' % (self.tolerance))
+                        logCode += '--- *****\n\n'
+                        self.log(logCode)
+
+                    polygon = QgsRubberBand(self.iface.mapCanvas(), False)
+                    polygon.setToGeometry(features[0].geometry(), None)
+                    polygon.setFillColor(QColor(255, 0, 255, 10))
+                    polygon.setStrokeColor(QColor(255, 0, 0))
+                    polygon.setWidth(3)
+                    self.canvasLines.append(polygon)
+
+                    tab = '                      '
+                    sqlCode = ("""
+                        UPDATE spatialunit SET geom = ST_Multi(ST_SimplifyPreserveTopology(geom,%s)) WHERE objectid = %s;
+                        DELETE FROM puntos_predio WHERE id_pol = %s;
+                        SELECT ffp_adiciona_puntos_predio(%s);
+                        UPDATE puntos_predio SET label = 'T' WHERE id_pol = %s;
+                    """ % ('{:.7f}'.format(round(self.tolerance/111140,7)), targetPolygon, targetPolygon, targetPolygon, targetPolygon)).replace(tab,'')
+
+                    ok, err = self.pgQuery(sqlCode, False, True)
+                    if ok:
+                        self.iface.mapCanvas().refreshAllLayers()
+                        self.toolbar.setDisabled(True)
+
+                        msgWin = simplifyMsgWindow(self, sqlCode, targetPolygon)
+                        msgWin.show()
+    #---
+
+
+    def endSimplify(self, sqlCode, targetPolygon):
+        logCode = 'BEGIN;\n' + sqlCode + '\nEND;'
+        successMsg = ('Spatialunit %s was succesfully simplified' % (targetPolygon))
+        logCode += '\n-- ' + successMsg
+        self.log(logCode)
+        self.undoMessages.append('Spatialunit %s will be restored to its original geometry' % (targetPolygon))
+
+        self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
+        print(successMsg + '\n---')
+
+        self.clearCanvas()
+        self.toolbar.setEnabled(True)
+        self.onNewSavePoint()
+    #---
+
+
     def clearCanvas(self):
         for line in self.canvasLines:
         	self.iface.mapCanvas().scene().removeItem(line)
@@ -1055,8 +1515,8 @@ class FfpToolsPlugin:
         if ok:
             features = self.pointsLayer.selectedFeatures()
             count = len(features)
-            if count < 2 or count > 4:
-                message = 'Select two or up to four features from layer "puntos_predio"...'
+            if count < 2 or count > 3:
+                message = 'Select two or up to three features from layer "puntos_predio"...'
                 self.iface.messageBar().pushMessage('Operation not possible', message, level=Qgis.Info)
             else:
                 pointIds = []
@@ -1066,8 +1526,9 @@ class FfpToolsPlugin:
                     pointIds.append(feature['pto'])
                     if feature['id_pol'] not in spatialunitIds:
                         spatialunitIds.append(feature['id_pol'])
+                    accuracy = '{:.2f}'.format(feature['accuracy']) if (str(feature['accuracy'])).isnumeric() == 'NULL' else '---'
                     details += ('%s %s: %s m\n' %
-                        (feature['label'] == 'A' and 'Anchor' or 'Vertex', feature['pto'], '{:.2f}'.format(feature['accuracy'])))
+                        (feature['label'] == 'A' and 'Anchor' or 'Vertex', feature['pto'], accuracy))
 
                 pointIds.sort()
                 pointList = ', '.join(str(f) for f in pointIds)
@@ -1086,7 +1547,7 @@ class FfpToolsPlugin:
                                     insideThreshold = False
 
                         if insideThreshold:
-                            result = self.pgQuery("""SELECT ver_pto_medio(%s);""" % (pointList), True)
+                            result = self.pgQuery("""SELECT ffp_ver_pto_medio(%s);""" % (pointList), True)
                             self.iface.mapCanvas().refreshAllLayers()
 
                             msgWin = actionWindow(self.iface, ' Move to Mid-Point')
@@ -1096,7 +1557,7 @@ class FfpToolsPlugin:
                             choice = msgWin.exec()
 
                             if choice == QMessageBox.Yes:
-                                sqlCode = """SELECT ver_pto_medio(%s, true);""" % (pointList)
+                                sqlCode = """SELECT ffp_ver_pto_medio(%s, true);""" % (pointList)
                                 ok, err = self.pgQuery(sqlCode, False, True)
                                 if ok:
                                     self.undoMessages.append('Points %s will be restored to their previous locations' %(pointList))
@@ -1124,11 +1585,6 @@ class FfpToolsPlugin:
                     message = 'The selected features are not of the same type (Anchor/Vertex)...'
                     self.iface.messageBar().pushMessage('Operation not possible', message, level=Qgis.Info)
     #---
-
-
-                                           
-                    
-        
 
 
     def setToAnchor(self):
@@ -1213,12 +1669,12 @@ class FfpToolsPlugin:
                         message = 'Point 001 has been moved to the location of point 002'
 
                         if choice == 1:
-                            sqlCode = """SELECT mueva_1_a_2(%s, %s, true);""" % (pointIds[0], pointIds[1])
+                            sqlCode = """SELECT ffp_mueva_1_a_2(%s, %s, true);""" % (pointIds[0], pointIds[1])
                             message = message.replace('001', str(pointIds[0]))
                             message = message.replace('002', str(pointIds[1]))
                             logCode = '[ %s - %s ] : %s m' % (pointIds[0], pointIds[1], '{:.1f}'.format(distance))
                         elif choice == 2:
-                            sqlCode = """SELECT mueva_1_a_2(%s, %s, true);""" % (pointIds[1], pointIds[0])
+                            sqlCode = """SELECT ffp_mueva_1_a_2(%s, %s, true);""" % (pointIds[1], pointIds[0])
                             message = message.replace('001', str(pointIds[1]))
                             message = message.replace('002', str(pointIds[0]))
                             logCode = '[ %s - %s ] : %s m' % (pointIds[1], pointIds[0], '{:.1f}'.format(distance))
@@ -1232,6 +1688,140 @@ class FfpToolsPlugin:
                             print(message + '\n---')
 
                             self.onNewSavePoint()
+    #---
+
+
+    def projectVertex(self):
+        message, ok = self.checkLayers()
+        if ok:
+            features = self.pointsLayer.selectedFeatures()
+            count = len(features)
+            countOK = True
+            if count > 1:
+                pto = features[0].geometry().asPoint()
+                for feat in features:
+                    if not QgsGeometry.fromPointXY(feat.geometry().asPoint()).equals(QgsGeometry.fromPointXY(pto)):
+                        countOK = False
+                        break
+            if not countOK:
+                message = 'Select only one point from the layer "puntos_predio", there are currently %s seleected... ' % count
+                self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
+            else:
+                srcPolygon = features[0]['id_pol']
+                pointId = features[0]['pto']
+                srcPointGeom = features[0].geometry().asPoint()
+
+                sqlCode = ("""
+                    TRUNCATE scratchpad;
+                    INSERT INTO scratchpad (col1, col2)
+                        SELECT a.objectid, ST_Distance(a.geom, ST_ClosestPoint(b.geom, a.geom))
+                        FROM spatialunit a, puntos_predio b
+                        WHERE b.pto = %s AND a.objectid <> %s
+                        ORDER BY 2
+                        LIMIT 2;
+                """ % (pointId, srcPolygon))
+
+                ok, err = self.pgQuery(sqlCode)
+                if ok:
+                    polyList = []
+                    for record in self.resultsLayer.getFeatures():
+                        polyList.append(record.attributes()[0])
+
+                    targetPolygon, ok = QInputDialog.getItem(self.iface.mainWindow(), ' Select One', 'Select the target spatialunit: ', polyList, 0)
+
+                    if ok:
+                        sqlCode = ("""SELECT ffp_proyectar_punto(%s, %s);""" %(pointId, targetPolygon))
+                        self.pgQuery(sqlCode, True, False)
+
+                        scratchPoint = list(self.scratchLayer.getFeatures())[0].geometry().asPoint()
+                        distance = self.calculator.measureLine(srcPointGeom, scratchPoint)
+
+                        if distance > self.threshold:
+                            insideThreshold = False
+                            message = 'The projection distance (%s m) is outside the allowed threshold.' % '{:.2f}'.format(distance)
+                        else:
+                            insideThreshold = True
+
+                        if insideThreshold:
+                            self.iface.mapCanvas().refreshAllLayers()
+
+                            msgWin = actionWindow(self.iface, ' Split Segment')
+                            msgWin.setMainText('Do you want to add the new vertex to spatialunit %s?' % (targetPolygon))
+                            msgWin.adjustSize()
+                            choice = msgWin.exec()
+
+                            if choice == QMessageBox.Yes:
+                                scratchPoint = 'SRID=4326;' + list(self.scratchLayer.getFeatures())[0].geometry().asWkt()
+
+                                sql_code = ("""
+                                    TRUNCATE scratchpad;
+                                    INSERT INTO scratchpad (col1, col2)
+                                        WITH s AS(
+                                            SELECT (st_DumpSegments(geom)).geom
+                                            FROM spatialunit WHERE objectid = %s
+                                        ),
+                                        t AS (
+                                            SELECT ST_PointN(s.geom,1) AS p1, ST_PointN(s.geom,2) AS p2, ST_Distance(s.geom, ST_GeomFromEWKT('%s'))
+                                            FROM s
+                                            ORDER BY 3
+                                            limit 1
+                                        )
+                                        SELECT l.* FROM (
+                                            SELECT pto, num_pto
+                                            FROM puntos_predio AS pp, t
+                                            WHERE ST_Equals(t.p1, pp.geom) and id_pol = %s
+                                            UNION
+                                            SELECT pto, num_pto
+                                            FROM puntos_predio AS pp, t
+                                            WHERE ST_Equals(t.p2, pp.geom) and id_pol = %s
+                                        ) AS l ORDER BY 2;
+                                """ % (targetPolygon, scratchPoint, targetPolygon, targetPolygon))
+
+                                ok, err = self.pgQuery(sql_code)
+                                if ok:
+                                    records = list(self.resultsLayer.getFeatures())
+                                    print(records[0].attributes())
+                                    print(records[1].attributes())
+                                    if abs(int(records[0].attributes()[1]) - int(records[1].attributes()[1])) == 1:
+                                        pointList = '%s, %s' % (records[0].attributes()[0], records[1].attributes()[0])
+                                    else:
+                                        pointList = '%s, %s' % (records[1].attributes()[0], records[0].attributes()[0])
+
+                                    logCode = 'BEGIN;\n  ' + sqlCode + '\n'
+                                    sqlCode = """SELECT ffp_nuevo_punto_proyectado(%s);""" % (pointList)
+                                    ok, err = self.pgQuery(sqlCode, False, True)
+                                    if ok:
+                                        logCode += '  ' + sqlCode + '\nEND;'
+                                        idx = self.pointsLayer.fields().indexFromName('pto')
+                                        newId = self.pointsLayer.maximumValue(idx)
+                                        successMsg = ('Vertex [%s] was added to spatialunit %s, between points %s'
+                                            % (newId, targetPolygon, pointList.replace(', ', ' & ')))
+                                        logCode += '\n-- ' + successMsg
+                                        self.log(logCode)
+                                        self.undoMessages.append('Vertex %s will be removed from spatialunit %s' % (newId, targetPolygon))
+
+                                        self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
+                                        print(successMsg + '\n---')
+
+                                        self.onNewSavePoint()
+                                else:
+                                    print('Query error:')
+                                    print(err)
+
+                            else:
+                                self.clearScratch()
+                                self.iface.mapCanvas().refreshAllLayers()
+
+                        else:
+                            msgBox = actionWindow(self.iface, ' Operation not Possible', False)
+                            msgBox.setMainText(message)
+                            msgBox.adjustSize()
+                            msgBox.exec()
+                            self.clearScratch()
+                            self.iface.mapCanvas().refreshAllLayers()
+                else:
+                    print('Query Error:')
+                    print('error:')
     #---
 
 
@@ -1273,6 +1863,8 @@ class FfpToolsPlugin:
                     targetPoints = self.pointsLayer.getFeatures('"id_pol"=%s' % (target))
                     vertexCount = len([point for point in targetPoints])
 
+                    print(vertexCount)
+                    print(pointIds)
                     delta = abs(pointIds[0][1] - pointIds[1][1])
                     pointSequence = True
                     if delta == vertexCount - 1:
@@ -1286,7 +1878,7 @@ class FfpToolsPlugin:
                         pointIds.sort(key=lambda x: x[1], reverse = desc)
                         idList = '%s, %s' % (pointIds[0][0], pointIds[1][0])
 
-                        sqlCode = ("""SELECT proyectar_punto(%s, %s);""" %(srcPoint, target))
+                        sqlCode = ("""SELECT ffp_proyectar_punto(%s, %s);""" %(srcPoint, target))
                         self.pgQuery(sqlCode, True, False)
 
                         scratchPoint = list(self.scratchLayer.getFeatures())[0].geometry().asPoint()
@@ -1294,7 +1886,7 @@ class FfpToolsPlugin:
 
                         if distance > self.threshold:
                             insideThreshold = False
-                            extraText = ' Or the projection distance is outside the allowed threshold.'
+                            extraText = ' Or the projection distance (%s m) is outside the allowed threshold.' % '{:.2f}'.format(distance)
                         else:
                             insideThreshold = True
                             extraText = ''
@@ -1316,7 +1908,7 @@ class FfpToolsPlugin:
 
                             if choice == QMessageBox.Yes:
                                 logCode = 'BEGIN;\n  ' + sqlCode + '\n'
-                                sqlCode = """SELECT nuevo_punto_proyectado(%s);""" % (idList)
+                                sqlCode = """SELECT ffp_nuevo_punto_proyectado(%s);""" % (idList)
                                 ok, err = self.pgQuery(sqlCode, False, True)
                                 if ok:
                                     logCode += '  ' + sqlCode + '\nEND;'
@@ -1383,7 +1975,7 @@ class FfpToolsPlugin:
                         pointIds.sort(key=lambda x: x[1], reverse = desc)
                         idList = '%s, %s' % (pointIds[0][0], pointIds[1][0])
 
-                        sqlCode = ("""SELECT ver_pto_medio(%s);""" %(idList))
+                        sqlCode = ("""SELECT ffp_ver_pto_medio(%s);""" %(idList))
                         self.pgQuery(sqlCode, True, False)
                         self.iface.mapCanvas().refreshAllLayers()
 
@@ -1394,7 +1986,7 @@ class FfpToolsPlugin:
                         choice = msgWin.exec()
 
                         if choice == QMessageBox.Yes:
-                            sqlCode = """SELECT nuevo_punto_medio(%s);""" % (idList)
+                            sqlCode = """SELECT ffp_nuevo_punto_medio(%s);""" % (idList)
                             self.pgQuery(sqlCode, True, True)
                             idx = self.pointsLayer.fields().indexFromName('pto')
                             newId = self.pointsLayer.maximumValue(idx)
@@ -1417,7 +2009,6 @@ class FfpToolsPlugin:
                 else:
                     message = 'The selected points belong to different spatialunits...'
                     self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
-
     #---
 
 
@@ -1462,7 +2053,7 @@ class FfpToolsPlugin:
                     choice = msgWin.exec()
 
                     if choice == QMessageBox.Yes:
-                        sqlCode = """SELECT borre_punto(%s, true);""" % (pointList)
+                        sqlCode = """SELECT ffp_borre_punto(%s, true);""" % (pointList)
                         self.pgQuery(sqlCode, True, True)
 
                         logCode = sqlCode + '\n-- Deleted vertex [ ' + pointList + ' ] from spatialunit ' + str(spatialunitIds[0])
@@ -1536,7 +2127,7 @@ class FfpToolsPlugin:
                         logCode = ''
                         addSavePoint = True
                         for item in pointPairs:
-                            sqlCode = """SELECT ver_pto_medio(%s, %s, true);""" % (item[0], item[1])
+                            sqlCode = """SELECT ffp_ver_pto_medio(%s, %s, true);""" % (item[0], item[1])
                             self.pgQuery(sqlCode, True, addSavePoint)
                             logCode += sqlCode + '\n'
                             addSavePoint = False
@@ -1560,6 +2151,87 @@ class FfpToolsPlugin:
     #---
 
 
+    def deletePolygon(self):
+        message, ok = self.checkLayers()
+        if ok:
+            features = self.spatialunitsLayer.selectedFeatures()
+            count = len(features)
+
+            if count == 0:
+                message = 'Select one spatialunit... '
+                self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
+            else:
+                polyList = []
+                for feature in features:
+                    polyList.append(feature['objectid'])
+
+                polyList.sort()
+                targetPolygon = selectSpatialunitDialog(self.spatialunitsLayer, [str(r) for r in polyList]).exec()
+
+                if targetPolygon != 0:
+                    self.spatialunitsLayer.selectByExpression('"objectid"=%s' % (targetPolygon))
+                    sql_code = ("""
+                        TRUNCATE scratchpad;
+                        INSERT INTO scratchpad (col1, col2, col3)
+                            SELECT * FROM ffp_spatialunit_recordset(%s);
+                    """ % (targetPolygon))
+
+                    ok, err = self.pgQuery(sql_code)
+                    if ok:
+                        records = []
+                        for record in self.resultsLayer.getFeatures():
+                            records.append([record.attributes()[0], record.attributes()[1], record.attributes()[2]])
+                        tblWin = tableWindow()
+                        tblWin.setData(targetPolygon, records, self.iface)
+                        choice = tblWin.exec()
+
+                        if choice == QMessageBox.Yes:
+                            sqlCode = ""
+                            for i, (table, desc, globalid) in enumerate(records):
+                                if i == 0:
+                                    spatialunit_id = globalid
+                                if '__attach' in table:
+                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, data, deleted_on)
+                                        SELECT '%s', %s, row(attachmentid, globalid, rel_globalid, content_type, att_name, data_size)::TEXT, data, to_char(now(), 'YYYY-MM-DD HH24:MI')
+                                        FROM "%s" WHERE globalid = '%s';\n\n""" % (table, targetPolygon, table, globalid))
+                                else:
+                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, deleted_on) SELECT '%s', %s, row(t.*)::TEXT, to_char(now(), 'YYYY-MM-DD HH24:MI') FROM "%s" AS t WHERE globalid = '%s';\n\n""" % (table, targetPolygon, table, globalid))
+                                sqlCode += """  DELETE FROM "%s" WHERE globalid = '%s';\n\n""" % (table, globalid)
+
+                            sqlCode += """  DELETE FROM puntos_predio WHERE id_pol = '%s';\n\n""" % targetPolygon
+
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'anchorpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  DELETE FROM anchorpoint WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
+
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'vertexpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  DELETE FROM vertexpoint WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
+
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'referenceobject', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  DELETE FROM referenceobject WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
+
+                            ok, err = self.pgQuery(sqlCode, False, True)
+                            if ok:
+                                logCode = 'BEGIN;\n' + sqlCode + 'END;'
+                                successMsg = ('All records associated with spatialunit %s were deleted.' % targetPolygon)
+                                logCode += '\n-- ' + successMsg
+                                self.log(logCode)
+                                self.undoMessages.append('The records associated with spatialunit %s will be restored.' % targetPolygon)
+
+                                self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
+                                print(successMsg + '\n---')
+
+                                self.onNewSavePoint()
+                            else:
+                                print('Query error:')
+                                print(err)
+                        else:
+                            self.refresh()
+                    else:
+                        print('Query error:')
+                        print(err)
+# #---
+
+
     def onNewSavePoint(self):
         self.sessionIsDirty = True
         self.refresh(True)
@@ -1581,6 +2253,7 @@ class FfpToolsPlugin:
                 action.setDisabled(True)
             self.actions[0].setEnabled(True)
             self.actions[1].setEnabled(True)
+            self.dropScratchpad()
             self.activeSession = False
             QgsProject.instance().projectSaved.disconnect(self.endSession)
             QgsProject.instance().setDirty(False)
@@ -1594,10 +2267,17 @@ class FfpToolsPlugin:
         if self.activeSession:
             self.pgSession.rollback()
             del(self.pgSession)
+            self.dropScratchpad()
+            self.activeSession = False
         del(self.toolbar)
     #---
+
+
+    def dropScratchpad(self):
+        sqlCode = """
+            DROP TABLE IF EXISTS scratchpad;
+        """
+        self.runSql(sqlCode)
+    #---
+
 #---
-
-
-                           
-             
