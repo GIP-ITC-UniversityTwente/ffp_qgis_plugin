@@ -25,6 +25,8 @@ QGIS Plugin
 	0.5.0	[10-03-2021]
 		* First release
 
+![image](https://user-images.githubusercontent.com/29703624/158779959-972a0b8d-58b5-4c37-8b61-8fa40dcd8e04.png)
+
 
 ### Requirements:
 
