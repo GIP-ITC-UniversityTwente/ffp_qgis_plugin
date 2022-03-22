@@ -31,7 +31,8 @@ QGIS Plugin
 ### Requirements:
 
 * QGIS Version 3.0
-* PostgreSQL
+* PostgreSQL 12.9
+* PostGIS 3.2
 * FFP data model v9.2
 
 
