@@ -745,6 +745,14 @@ class FfpToolsPlugin:
                 self.pgConnection = QgsProviderRegistry.instance().providerMetadata('postgres').findConnection(self.connectionName)
                 self.params = dict(item.split("=") for item in self.pgConnection.uri().replace("'",'').split(' '))
 
+                if not 'host' in self.params:
+                    self.params['host'] = 'localhost'
+                    print("No host name provided, using default value: 'localhost'")
+                if not 'user' in self.params:
+                    self.params['user'] = ''
+                if not 'password' in self.params:
+                    self.params['password'] = ''
+
                 message, ready = self.checkLayers(True)
 
                 if not ready:
@@ -764,9 +772,9 @@ class FfpToolsPlugin:
                         DROP TABLE IF EXISTS scratchpad;
                         CREATE TABLE scratchpad
                         (
-                            col1 character varying,
-                            col2 character varying,
-                            col3 character varying,
+                            col1 character varying, col2 character varying, col3 character varying,
+                            col4 character varying, col5 character varying, col6 character varying,
+                            col7 character varying, col8 character varying, col9 character varying,
                             geom geometry(PointZ,4326)
                         );
                     """
@@ -1112,7 +1120,7 @@ class FfpToolsPlugin:
                     elif action.text() == 'Merge Boundaries':
                         action.setEnabled(True)
 
-                successMsg = 'All changes were committed succesfully'
+                successMsg = 'All changes were committed successfully'
                 print(successMsg + '\n---')
                 self.iface.messageBar().pushMessage('Message:', successMsg, level=Qgis.Success)
                 self.log('-- ******* ' + successMsg.upper() + ' *******')
@@ -1203,7 +1211,7 @@ class FfpToolsPlugin:
             features = self.pointsLayer.selectedFeatures()
             count = len(features)
             if count < 5:
-                message = 'An incorrect number of features is currently are selected  from layer "puntos_predio"... '
+                message = 'An incorrect number of features is currently selected from layer "puntos_predio"... '
                 self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
             else:
                 spatialunitIdCounts = []
@@ -1240,7 +1248,7 @@ class FfpToolsPlugin:
 
 
                 if anchors > 4 or vertices < 1 or not correctPoints:
-                    message = 'The selected points do not correspond to "Vertex" & "Anchor" points of a shared boundary betewwn two spatialunits...'
+                    message = 'The selected points do not correspond to a proper sequence of "Vertex" & "Anchor" points of a shared boundary between two spatialunits...'
                     self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
                 else:
                     key1 = spatialunitIds[0]
@@ -1272,6 +1280,8 @@ class FfpToolsPlugin:
                         self.mergeDetails += "</p>"
 
                         sqlCode = ("""
+                            TRUNCATE scratchpad;
+                            INSERT INTO scratchpad
                             WITH l1 AS (
                                 SELECT row_number() over(ORDER BY num_pto), * FROM puntos_predio
                                 WHERE id_pol = %s AND pto in (%s)
@@ -1338,13 +1348,13 @@ class FfpToolsPlugin:
                             pointSets[spatialunitIds[1]]['pos'][0] - 1
                         ))
 
-                        self.mergeRecords = self.runSql(sqlCode)
+                        ok, err = self.pgQuery(sqlCode)
                         self.clearScratch()
 
                         self.mergeDetails += '<p><b>Distances:</b>'
                         insideThreshold = True
-                        for item in self.mergeRecords:
-                            if item[6] > 0.0:
+                        for item in self.resultsLayer.getFeatures():
+                            if float(item[6]) > 0.0:
                                 coords = re.search(r'\((.*)\)', item[4]).group(1)
                                 x1, y1 = coords.split(' ')
                                 coords = re.search(r'\((.*)\)', item[5]).group(1)
@@ -1361,8 +1371,8 @@ class FfpToolsPlugin:
                                 """ % (item[0], item[7]))
                                 self.pgQuery(sqlCode, False, False)
 
-                                point1 = ([x for x in features if x.attribute('pto') == item[1]])[0].geometry().asPoint()
-                                point2 = ([x for x in self.scratchLayer.getFeatures() if x.attribute('id') == item[0]])[0].geometry().asPoint()
+                                point1 = ([x for x in features if x.attribute('pto') == int(item[1])])[0].geometry().asPoint()
+                                point2 = ([x for x in self.scratchLayer.getFeatures() if x.attribute('id') == int(item[0])])[0].geometry().asPoint()
                                 distance = self.calculator.measureLine(point1, point2)
                                 self.mergeDetails += '<br/> %s → %s : %s m' % (item[1], item[3], '{:.2f}'.format(distance))
                                 if distance > self.threshold:
@@ -1396,8 +1406,8 @@ class FfpToolsPlugin:
         addSavePoint = True
         fieldIdx = self.pointsLayer.fields().indexFromName('pto')
         logCode = 'BEGIN;\n\n'
-        for item in self.mergeRecords:
-            if item[6] > 0.0:
+        for item in self.resultsLayer.getFeatures():
+            if float(item[6]) > 0.0:
                 sqlCode = ("""SELECT ffp_proyectar_punto(%s, %s);""" %(item[1], item[3]))
                 self.pgQuery(sqlCode, True, addSavePoint)
                 logCode += '  ' + sqlCode + '\n'
@@ -1448,7 +1458,7 @@ class FfpToolsPlugin:
             count = len(features)
 
             if count != 1:
-                message = 'Select (only) one spatialunit there are %s currently seleected... ' % count
+                message = 'Select (only) one spatialunit, there are %s currently seleected... ' % count
                 self.iface.messageBar().pushMessage('Operation not possible:', message, level=Qgis.Info)
             else:
                 targetPolygon =     features[0]['objectid']
@@ -1542,7 +1552,7 @@ class FfpToolsPlugin:
                             for j in range(i + 1, count):
                                 distance = self.calculator.measureLine(features[i].geometry().asPoint(), features[j].geometry().asPoint())
                                 distances += ("""\n%s ←→ %s : %s m""" %
-                                    (features[i]['pto'], features[j]['pto'], '{:.2f}'.format(distance)))
+                                    (features[i]['pto'], features[j]['pto'], '{:.4f}'.format(distance)))
                                 if distance > self.threshold:
                                     insideThreshold = False
 
@@ -1780,8 +1790,6 @@ class FfpToolsPlugin:
                                 ok, err = self.pgQuery(sql_code)
                                 if ok:
                                     records = list(self.resultsLayer.getFeatures())
-                                    print(records[0].attributes())
-                                    print(records[1].attributes())
                                     if abs(int(records[0].attributes()[1]) - int(records[1].attributes()[1])) == 1:
                                         pointList = '%s, %s' % (records[0].attributes()[0], records[1].attributes()[0])
                                     else:
@@ -2191,22 +2199,20 @@ class FfpToolsPlugin:
                                 if i == 0:
                                     spatialunit_id = globalid
                                 if '__attach' in table:
-                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, data, deleted_on)
-                                        SELECT '%s', %s, row(attachmentid, globalid, rel_globalid, content_type, att_name, data_size)::TEXT, data, to_char(now(), 'YYYY-MM-DD HH24:MI')
-                                        FROM "%s" WHERE globalid = '%s';\n\n""" % (table, targetPolygon, table, globalid))
+                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, data, deleted_on)\n    SELECT '%s', %s, row(attachmentid, globalid, rel_globalid, content_type, att_name, data_size)::TEXT, data, to_char(now(), 'YYYY-MM-DD HH24:MI')\n    FROM "%s" WHERE globalid = '%s';\n""" % (table, targetPolygon, table, globalid))
                                 else:
-                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, deleted_on) SELECT '%s', %s, row(t.*)::TEXT, to_char(now(), 'YYYY-MM-DD HH24:MI') FROM "%s" AS t WHERE globalid = '%s';\n\n""" % (table, targetPolygon, table, globalid))
+                                    sqlCode += ("""  INSERT INTO dump (table_name, objectid, record, deleted_on)\n    SELECT '%s', %s, row(t.*)::TEXT, to_char(now(), 'YYYY-MM-DD HH24:MI')\n    FROM "%s" AS t WHERE globalid = '%s';\n""" % (table, targetPolygon, table, globalid))
                                 sqlCode += """  DELETE FROM "%s" WHERE globalid = '%s';\n\n""" % (table, globalid)
 
                             sqlCode += """  DELETE FROM puntos_predio WHERE id_pol = '%s';\n\n""" % targetPolygon
 
-                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'anchorpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on)\n    SELECT 'anchorpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI')\n    FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n""" % (targetPolygon, globalid)
                             sqlCode += """  DELETE FROM anchorpoint WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
 
-                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'vertexpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on)\n    SELECT 'vertexpoint', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI')\n    FROM vertexpoint AS p WHERE p.spatialunit_id = '%s';\n""" % (targetPolygon, globalid)
                             sqlCode += """  DELETE FROM vertexpoint WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
 
-                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on) SELECT 'referenceobject', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI') FROM anchorpoint AS p WHERE p.spatialunit_id = '%s';\n\n""" % (targetPolygon, globalid)
+                            sqlCode += """  INSERT INTO dump(table_name, objectid, record, deleted_on)\n    SELECT 'referenceobject', %s, row(p.*), to_char(now(), 'YYYY-MM-DD HH24:MI')\n    FROM referenceobject AS p WHERE p.spatialunit_id = '%s';\n""" % (targetPolygon, globalid)
                             sqlCode += """  DELETE FROM referenceobject WHERE spatialunit_id = '%s';\n\n""" % spatialunit_id
 
                             ok, err = self.pgQuery(sqlCode, False, True)
@@ -2239,8 +2245,6 @@ class FfpToolsPlugin:
         for action in self.actions:
             if action.text() in ['Undo', 'Commit']:
                 action.setEnabled(True)
-            elif action.text() == 'Merge Boundaries':
-                action.setDisabled(True)
     #---
 
 
