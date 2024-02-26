@@ -762,7 +762,7 @@ class FfpToolsPlugin:
                     dlgList = [el for el in QApplication.instance().allWidgets() if el.objectName() == attDialogId]
                     if len(dlgList) == 0:
                         dlgList = [self.iface.showAttributeTable(self.pointsLayer)]
-                        dlgList[0].findChild(QAction,'mActionDockUndock').trigger()
+                        # dlgList[0].findChild(QAction,'mActionDockUndock').trigger()
                     for dlg in dlgList:
                         dlg.findChild(QAction,'mActionSelectedFilter').trigger()
                     self.iface.setActiveLayer(self.pointsLayer)
